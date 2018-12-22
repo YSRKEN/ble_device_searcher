@@ -1,20 +1,28 @@
 package ysrken.ble_device_searcher
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.location.LocationManager
-import android.location.LocationProvider
 import android.os.Bundle
 import android.support.v7.app.AppCompatActivity
+import android.util.Log
 import android.widget.Toast
+import io.reactivex.Completable
+import io.reactivex.CompletableEmitter
+import io.reactivex.Single
+import io.reactivex.SingleEmitter
+import java.io.PrintWriter
+import java.io.StringWriter
 
 
 class MainActivity : AppCompatActivity() {
+    private val TAG: String = this.javaClass.simpleName
+
     /**
      * Bluetooth機能を有効化する際のリクエストコード
      */
@@ -31,35 +39,54 @@ class MainActivity : AppCompatActivity() {
     private var mBluetoothAdapter: BluetoothAdapter? = null
 
     /**
+     * requestBluetoothFeatureに対するEmitter
+     */
+    private var mBluetoothEmitter: CompletableEmitter? = null
+
+    /**
+     * requestLocationFeatureに対するEmitter
+     */
+    private var mLocationEmitter: CompletableEmitter? = null
+
+    /**
+     * スタックトレースを文字列化する
+     */
+    private fun Throwable.stackTraceString(): String {
+        val sw = StringWriter()
+        this.printStackTrace(PrintWriter(sw))
+        return sw.toString()
+    }
+
+    /**
      * Bluetooth機能が有効になっていない際は有効にする
      */
-    private fun requestBluetoothFeature() {
-        // 既に有効になっていれば飛ばす
-        if (mBluetoothAdapter!!.isEnabled()) {
-            return
-        }
+    private fun requestBluetoothFeature(): Completable {
+        return Completable.create {
+            // 既に有効になっていれば飛ばす
+            if (mBluetoothAdapter!!.isEnabled())
+                it.onComplete()
 
-        // 有効になっていないので、有効にするように要求する
-        val enableBtIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
-        startActivityForResult(enableBtIntent, BLUETOOTH_REQUEST_CODE)
+            // 有効になっていないので、有効にするように要求する
+            mBluetoothEmitter = it
+            val enableBtIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
+            startActivityForResult(enableBtIntent, BLUETOOTH_REQUEST_CODE)
+        }
     }
 
     /**
      * 位置情報機能が有効になっていない際は有効にする
      */
-    private fun requestLocationFeature() {
-        // Android 5.0以下なら確認しなくていい
-        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.M) {
-            return
-        }
+    private fun requestLocationFeature(): Completable {
+        return Completable.create {
+            // 既に有効になっていれば飛ばす
+            if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED){
+                it.onComplete()
+            }
 
-        // 既に有効になっていれば飛ばす
-        if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED){
-            return
+            // 有効になっていないので、有効にするように要求する
+            mLocationEmitter = it
+            requestPermissions(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), LOCATION_REQUEST_CODE)
         }
-
-        // 有効になっていないので、有効にするように要求する
-        requestPermissions(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), LOCATION_REQUEST_CODE)
     }
 
     /**
@@ -91,14 +118,17 @@ class MainActivity : AppCompatActivity() {
     /**
      * 表示時の処理
      */
+    @SuppressLint("CheckResult")
     override fun onResume() {
         super.onResume()
 
-        // Bluetooth機能が有効になっていない際は有効にする
-        requestBluetoothFeature()
-
-        // 位置情報機能が有効になっていない際は有効にする
-        requestLocationFeature()
+        // Bluetooth機能・位置情報機能が有効になっていない際は有効にする
+        requestBluetoothFeature().concatWith(requestLocationFeature()).subscribe({
+        }, {
+            Log.e(TAG, it.stackTraceString())
+            Toast.makeText(this, it.message, Toast.LENGTH_SHORT).show()
+            finish()
+        })
     }
 
     /**
@@ -109,11 +139,10 @@ class MainActivity : AppCompatActivity() {
         when (requestCode) {
         // requestBluetoothFeatureメソッドを叩いた際に有効になる
         BLUETOOTH_REQUEST_CODE ->
-            // 有効にならなかった場合
-            if (resultCode == Activity.RESULT_CANCELED) {
-                Toast.makeText(this, R.string.bluetooth_is_not_working, Toast.LENGTH_SHORT).show()
-                finish()
-                return
+            if (resultCode != Activity.RESULT_CANCELED){
+                mBluetoothEmitter?.onComplete()
+            }else {
+                mBluetoothEmitter?.onError(RuntimeException(getResources().getString(R.string.bluetooth_is_not_working)))
             }
         }
     }
@@ -126,11 +155,13 @@ class MainActivity : AppCompatActivity() {
         when (requestCode) {
         // requestLocationFeatureメソッドを叩いた際に有効になる
         LOCATION_REQUEST_CODE ->
-            // 有効にならなかった場合
-            if (grantResults[0] != PackageManager.PERMISSION_GRANTED) {
-                Toast.makeText(this, R.string.location_is_not_working, Toast.LENGTH_SHORT).show()
-                finish()
-                return
+            // ここで配列の要素数について調べないと、要素数0でOutOfRangeすることがあった
+            if (grantResults.size > 0) {
+                if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    mLocationEmitter?.onComplete()
+                } else {
+                    mLocationEmitter?.onError(RuntimeException(getResources().getString(R.string.location_is_not_working)))
+                }
             }
         }
     }
