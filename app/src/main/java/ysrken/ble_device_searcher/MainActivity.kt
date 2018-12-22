@@ -46,28 +46,16 @@ class MainActivity : AppCompatActivity() {
     private var requestLocationCont: Continuation<Boolean>? = null
 
     /**
-     * Bluetooth機能が有効になっていない際は有効にする
-     */
-    private fun requestBluetoothFeature(){
-        // 既に有効になっていれば飛ばす
-        if (mBluetoothAdapter!!.isEnabled()) {
-            return
-        }
-
-        // 有効になっていないので、有効にするように要求する
-        GlobalScope.launch {
-            if (!requestBluetoothAsync()) {
-                Toast.makeText(this@MainActivity, R.string.bluetooth_is_not_working, Toast.LENGTH_SHORT).show()
-                finish()
-            }
-        }
-    }
-
-    /**
      * Bluetooth機能を有効にするように要求する
      */
     private suspend fun requestBluetoothAsync(): Boolean  = suspendCoroutine { cont ->
         requestBluetoothCont = cont
+
+        // 既に有効になっていれば飛ばす
+        if (mBluetoothAdapter!!.isEnabled()) {
+            requestBluetoothCont?.resume(true)
+        }
+
         val enableBtIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
         startActivityForResult(enableBtIntent, BLUETOOTH_REQUEST_CODE)
     }
@@ -75,31 +63,19 @@ class MainActivity : AppCompatActivity() {
     /**
      * 位置情報機能が有効になっていない際は有効にする
      */
-    private fun requestLocationFeature() {
+    private suspend fun requestLocationCoroutine(): Boolean  = suspendCoroutine { cont ->
+        requestLocationCont = cont
+
         // Android 5.0以下なら確認しなくていい
         if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.M) {
-            return
+            requestLocationCont?.resume(true)
         }
 
         // 既に有効になっていれば飛ばす
         if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED){
-            return
+            requestLocationCont?.resume(true)
         }
 
-        // 有効になっていないので、有効にするように要求する
-        GlobalScope.launch {
-            if (!requestLocationAsync()) {
-                Toast.makeText(this@MainActivity, R.string.location_is_not_working, Toast.LENGTH_SHORT).show()
-                finish()
-            }
-        }
-    }
-
-    /**
-     * 位置情報機能を有効にするように要求する
-     */
-    private suspend fun requestLocationAsync(): Boolean  = suspendCoroutine { cont ->
-        requestLocationCont = cont
         requestPermissions(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), LOCATION_REQUEST_CODE)
     }
 
@@ -135,11 +111,19 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
 
-        // Bluetooth機能が有効になっていない際は有効にする
-        requestBluetoothFeature()
+        GlobalScope.launch {
+            // Bluetooth機能が有効になっていない際は有効にする
+            if (!requestBluetoothAsync()){
+                Toast.makeText(this@MainActivity, R.string.bluetooth_is_not_working, Toast.LENGTH_SHORT).show()
+                finish()
+            }
 
-        // 位置情報機能が有効になっていない際は有効にする
-        requestLocationFeature()
+            // 位置情報機能が有効になっていない際は有効にする
+            if (!requestLocationCoroutine()){
+                Toast.makeText(this@MainActivity, R.string.location_is_not_working, Toast.LENGTH_SHORT).show()
+                finish()
+            }
+        }
     }
 
     /**
