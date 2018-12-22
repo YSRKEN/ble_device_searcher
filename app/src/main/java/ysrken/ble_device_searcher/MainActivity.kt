@@ -11,11 +11,18 @@ import android.content.pm.PackageManager
 import android.os.Bundle
 import android.support.v7.app.AppCompatActivity
 import android.util.Log
+import android.widget.Button
+import android.widget.TextView
 import android.widget.Toast
 import io.reactivex.Completable
 import io.reactivex.CompletableEmitter
+import io.reactivex.Observable
+import io.reactivex.Scheduler
+import io.reactivex.android.schedulers.AndroidSchedulers
+import io.reactivex.schedulers.Schedulers
 import java.io.PrintWriter
 import java.io.StringWriter
+import java.util.concurrent.TimeUnit
 
 
 class MainActivity : AppCompatActivity() {
@@ -45,6 +52,16 @@ class MainActivity : AppCompatActivity() {
      * requestLocationFeatureに対するEmitter
      */
     private var mLocationEmitter: CompletableEmitter? = null
+
+    /**
+     * スキャンボタン
+     */
+    private var mScanButton: Button? = null
+
+    /**
+     * ログ表示画面
+     */
+    private var mLogTextView: TextView? = null
 
     /**
      * スタックトレースを文字列化する
@@ -87,9 +104,34 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    @SuppressLint("CheckResult")
+    private fun scanBleDevice() {
+        Observable.create <Boolean> {
+            Log.i(TAG, "Job1")
+            // ボタンを無効化する
+            mScanButton?.isEnabled = false
+            mScanButton?.setTextColor(0xffe0e0e0.toInt())
+            mLogTextView?.text = String.format("%s%nスキャン開始...", mLogTextView?.text)
+            it.onNext(true)
+            it.onComplete()
+        }
+        .observeOn(Schedulers.computation()).map {
+            Log.i(TAG, "Job2")
+            Thread.sleep(1000)
+        }
+        .observeOn(AndroidSchedulers.mainThread()).subscribe {
+            Log.i(TAG, "Job3")
+            // ボタンを有効化する
+            mLogTextView?.text = String.format("%s%nスキャン完了...", mLogTextView?.text)
+            mScanButton?.setTextColor(0xff000000.toInt())
+            mScanButton?.isEnabled = true
+        }
+    }
+
     /**
      * 起動時の処理
      */
+    @SuppressLint("CheckResult")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -110,6 +152,13 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, R.string.bluetooth_is_not_supported, Toast.LENGTH_SHORT).show()
             finish()
             return
+        }
+
+        // ボタンにイベントを設定する
+        mScanButton = findViewById(R.id.scan_button)
+        mLogTextView = findViewById(R.id.log_text_view)
+        mScanButton?.setOnClickListener{
+            scanBleDevice()
         }
     }
 
