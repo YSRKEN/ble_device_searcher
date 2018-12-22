@@ -7,11 +7,16 @@ import android.bluetooth.BluetoothManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.location.LocationManager
-import android.location.LocationProvider
 import android.os.Bundle
 import android.support.v7.app.AppCompatActivity
 import android.widget.Toast
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.async
+import kotlinx.coroutines.launch
+import kotlin.coroutines.Continuation
+import kotlin.coroutines.resume
+import kotlin.coroutines.suspendCoroutine
 
 
 class MainActivity : AppCompatActivity() {
@@ -31,15 +36,38 @@ class MainActivity : AppCompatActivity() {
     private var mBluetoothAdapter: BluetoothAdapter? = null
 
     /**
+     * requestBluetooth処理におけるコンテキスト
+     */
+    private var requestBluetoothCont: Continuation<Boolean>? = null
+
+    /**
+     * requestLocation処理におけるコンテキスト
+     */
+    private var requestLocationCont: Continuation<Boolean>? = null
+
+    /**
      * Bluetooth機能が有効になっていない際は有効にする
      */
-    private fun requestBluetoothFeature() {
+    private fun requestBluetoothFeature(){
         // 既に有効になっていれば飛ばす
         if (mBluetoothAdapter!!.isEnabled()) {
             return
         }
 
         // 有効になっていないので、有効にするように要求する
+        GlobalScope.launch {
+            if (!requestBluetoothAsync()) {
+                Toast.makeText(this@MainActivity, R.string.bluetooth_is_not_working, Toast.LENGTH_SHORT).show()
+                finish()
+            }
+        }
+    }
+
+    /**
+     * Bluetooth機能を有効にするように要求する
+     */
+    private suspend fun requestBluetoothAsync(): Boolean  = suspendCoroutine { cont ->
+        requestBluetoothCont = cont
         val enableBtIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
         startActivityForResult(enableBtIntent, BLUETOOTH_REQUEST_CODE)
     }
@@ -59,6 +87,19 @@ class MainActivity : AppCompatActivity() {
         }
 
         // 有効になっていないので、有効にするように要求する
+        GlobalScope.launch {
+            if (!requestLocationAsync()) {
+                Toast.makeText(this@MainActivity, R.string.location_is_not_working, Toast.LENGTH_SHORT).show()
+                finish()
+            }
+        }
+    }
+
+    /**
+     * 位置情報機能を有効にするように要求する
+     */
+    private suspend fun requestLocationAsync(): Boolean  = suspendCoroutine { cont ->
+        requestLocationCont = cont
         requestPermissions(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), LOCATION_REQUEST_CODE)
     }
 
@@ -109,12 +150,7 @@ class MainActivity : AppCompatActivity() {
         when (requestCode) {
         // requestBluetoothFeatureメソッドを叩いた際に有効になる
         BLUETOOTH_REQUEST_CODE ->
-            // 有効にならなかった場合
-            if (resultCode == Activity.RESULT_CANCELED) {
-                Toast.makeText(this, R.string.bluetooth_is_not_working, Toast.LENGTH_SHORT).show()
-                finish()
-                return
-            }
+            requestBluetoothCont?.resume(resultCode != Activity.RESULT_CANCELED)
         }
     }
 
@@ -126,12 +162,7 @@ class MainActivity : AppCompatActivity() {
         when (requestCode) {
         // requestLocationFeatureメソッドを叩いた際に有効になる
         LOCATION_REQUEST_CODE ->
-            // 有効にならなかった場合
-            if (grantResults[0] != PackageManager.PERMISSION_GRANTED) {
-                Toast.makeText(this, R.string.location_is_not_working, Toast.LENGTH_SHORT).show()
-                finish()
-                return
-            }
+            requestLocationCont?.resume(grantResults[0] == PackageManager.PERMISSION_GRANTED)
         }
     }
 }
