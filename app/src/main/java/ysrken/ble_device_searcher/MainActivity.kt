@@ -14,8 +14,6 @@ import android.util.Log
 import android.widget.Toast
 import io.reactivex.Completable
 import io.reactivex.CompletableEmitter
-import io.reactivex.Single
-import io.reactivex.SingleEmitter
 import java.io.PrintWriter
 import java.io.StringWriter
 
@@ -79,7 +77,7 @@ class MainActivity : AppCompatActivity() {
     private fun requestLocationFeature(): Completable {
         return Completable.create {
             // 既に有効になっていれば飛ばす
-            if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED){
+            if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
                 it.onComplete()
             }
 
@@ -137,13 +135,13 @@ class MainActivity : AppCompatActivity() {
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         when (requestCode) {
-        // requestBluetoothFeatureメソッドを叩いた際に有効になる
-        BLUETOOTH_REQUEST_CODE ->
-            if (resultCode != Activity.RESULT_CANCELED){
-                mBluetoothEmitter?.onComplete()
-            }else {
-                mBluetoothEmitter?.onError(RuntimeException(getResources().getString(R.string.bluetooth_is_not_working)))
-            }
+            // requestBluetoothFeatureメソッドを叩いた際に有効になる
+            BLUETOOTH_REQUEST_CODE ->
+                if (resultCode != Activity.RESULT_CANCELED) {
+                    mBluetoothEmitter?.onComplete()
+                } else {
+                    mBluetoothEmitter?.onError(RuntimeException(getResources().getString(R.string.bluetooth_is_not_working)))
+                }
         }
     }
 
@@ -153,16 +151,16 @@ class MainActivity : AppCompatActivity() {
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         when (requestCode) {
-        // requestLocationFeatureメソッドを叩いた際に有効になる
-        LOCATION_REQUEST_CODE ->
-            // ここで配列の要素数について調べないと、要素数0でOutOfRangeすることがあった
-            if (grantResults.size > 0) {
-                if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    mLocationEmitter?.onComplete()
-                } else {
-                    mLocationEmitter?.onError(RuntimeException(getResources().getString(R.string.location_is_not_working)))
+            // requestLocationFeatureメソッドを叩いた際に有効になる
+            LOCATION_REQUEST_CODE ->
+                // ここで配列の要素数について調べないと、要素数0でOutOfRangeすることがあった
+                if (grantResults.size > 0) {
+                    if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                        mLocationEmitter?.onComplete()
+                    } else {
+                        mLocationEmitter?.onError(RuntimeException(getResources().getString(R.string.location_is_not_working)))
+                    }
                 }
-            }
         }
     }
 }
