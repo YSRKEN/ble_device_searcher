@@ -41,17 +41,17 @@ class MainActivity : AppCompatActivity() {
     /**
      * Bluetooth通信を行うためのアダプタ-
      */
-    private var mBluetoothAdapter: BluetoothAdapter? = null
+    private lateinit var mBluetoothAdapter: BluetoothAdapter
 
     /**
      * requestBluetoothFeatureに対するEmitter
      */
-    private var mBluetoothEmitter: CompletableEmitter? = null
+    private lateinit var mBluetoothEmitter: CompletableEmitter
 
     /**
      * requestLocationFeatureに対するEmitter
      */
-    private var mLocationEmitter: CompletableEmitter? = null
+    private lateinit var mLocationEmitter: CompletableEmitter
 
     /**
      * スキャンボタン
@@ -78,7 +78,7 @@ class MainActivity : AppCompatActivity() {
     private fun requestBluetoothFeature(): Completable {
         return Completable.create {
             // 既に有効になっていれば飛ばす
-            if (mBluetoothAdapter!!.isEnabled())
+            if (mBluetoothAdapter.isEnabled)
                 it.onComplete()
 
             // 有効になっていないので、有効にするように要求する
@@ -146,12 +146,13 @@ class MainActivity : AppCompatActivity() {
 
         // Bluetoothアダプターを取得
         val bluetoothManager = getSystemService(Context.BLUETOOTH_SERVICE) as BluetoothManager
-        mBluetoothAdapter = bluetoothManager.adapter
-        if (mBluetoothAdapter == null) {
+        if (bluetoothManager.adapter == null) {
             // Bluetoothをサポートしていない場合
             Toast.makeText(this, R.string.bluetooth_is_not_supported, Toast.LENGTH_SHORT).show()
             finish()
             return
+        } else {
+            mBluetoothAdapter = bluetoothManager.adapter
         }
 
         // ボタンにイベントを設定する
@@ -187,9 +188,9 @@ class MainActivity : AppCompatActivity() {
             // requestBluetoothFeatureメソッドを叩いた際に有効になる
             BLUETOOTH_REQUEST_CODE ->
                 if (resultCode != Activity.RESULT_CANCELED) {
-                    mBluetoothEmitter?.onComplete()
+                    mBluetoothEmitter.onComplete()
                 } else {
-                    mBluetoothEmitter?.onError(RuntimeException(getResources().getString(R.string.bluetooth_is_not_working)))
+                    mBluetoothEmitter.onError(RuntimeException(getResources().getString(R.string.bluetooth_is_not_working)))
                 }
         }
     }
@@ -205,9 +206,9 @@ class MainActivity : AppCompatActivity() {
                 // ここで配列の要素数について調べないと、要素数0でOutOfRangeすることがあった
                 if (grantResults.size > 0) {
                     if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                        mLocationEmitter?.onComplete()
+                        mLocationEmitter.onComplete()
                     } else {
-                        mLocationEmitter?.onError(RuntimeException(getResources().getString(R.string.location_is_not_working)))
+                        mLocationEmitter.onError(RuntimeException(getResources().getString(R.string.location_is_not_working)))
                     }
                 }
         }
