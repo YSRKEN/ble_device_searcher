@@ -122,7 +122,7 @@ class MainActivity : AppCompatActivity() {
             }
 
             // スキャン処理を登録する
-            Observable.create<BluetoothDevice>{ emitter ->
+                Observable.create<BluetoothDevice>{ emitter ->
                 val scanner = mBluetoothAdapter.bluetoothLeScanner
                 val callback = BleScanCallback()
                 callback.setScanResultEmitter(emitter)
