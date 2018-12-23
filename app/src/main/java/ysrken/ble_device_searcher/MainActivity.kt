@@ -56,12 +56,12 @@ class MainActivity : AppCompatActivity() {
     /**
      * スキャンボタン
      */
-    private var mScanButton: Button? = null
+    private val mScanButton: Button by lazy { findViewById<Button>(R.id.scan_button) }
 
     /**
      * ログ表示画面
      */
-    private var mLogTextView: TextView? = null
+    private val mLogTextView: TextView by lazy { findViewById<TextView>(R.id.log_text_view) }
 
     /**
      * スタックトレースを文字列化する
@@ -106,25 +106,26 @@ class MainActivity : AppCompatActivity() {
 
     @SuppressLint("CheckResult")
     private fun scanBleDevice() {
-        Observable.create <Boolean> {
+        Observable.create<Boolean> {
             Log.i(TAG, "Job1")
             // ボタンを無効化する
-            mScanButton?.isEnabled = false
-            mScanButton?.setTextColor(0xffe0e0e0.toInt())
-            mLogTextView?.text = String.format("%s%nスキャン開始...", mLogTextView?.text)
+            mScanButton.isEnabled = false
+            mScanButton.setTextColor(0xffe0e0e0.toInt())
+            mLogTextView.text = String.format("%s%nスキャン開始...", mLogTextView.text)
             it.onNext(true)
             it.onComplete()
         }
         .observeOn(Schedulers.computation()).map {
+            val scanner = mBluetoothAdapter.bluetoothLeScanner
             Log.i(TAG, "Job2")
             Thread.sleep(1000)
         }
         .observeOn(AndroidSchedulers.mainThread()).subscribe {
             Log.i(TAG, "Job3")
             // ボタンを有効化する
-            mLogTextView?.text = String.format("%s%nスキャン完了...", mLogTextView?.text)
-            mScanButton?.setTextColor(0xff000000.toInt())
-            mScanButton?.isEnabled = true
+            mLogTextView.text = String.format("%s%nスキャン完了...", mLogTextView.text)
+            mScanButton.setTextColor(0xff000000.toInt())
+            mScanButton.isEnabled = true
         }
     }
 
@@ -156,9 +157,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         // ボタンにイベントを設定する
-        mScanButton = findViewById(R.id.scan_button)
-        mLogTextView = findViewById(R.id.log_text_view)
-        mScanButton?.setOnClickListener{
+        mScanButton.setOnClickListener {
             scanBleDevice()
         }
     }
