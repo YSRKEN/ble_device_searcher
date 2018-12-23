@@ -5,6 +5,9 @@ import android.annotation.SuppressLint
 import android.app.Activity
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
+import android.bluetooth.le.BluetoothLeScanner
+import android.bluetooth.le.ScanCallback
+import android.bluetooth.le.ScanResult
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -14,10 +17,7 @@ import android.util.Log
 import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
-import io.reactivex.Completable
-import io.reactivex.CompletableEmitter
-import io.reactivex.Observable
-import io.reactivex.Scheduler
+import io.reactivex.*
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.schedulers.Schedulers
 import java.io.PrintWriter
@@ -42,6 +42,11 @@ class MainActivity : AppCompatActivity() {
      * Bluetooth通信を行うためのアダプタ-
      */
     private lateinit var mBluetoothAdapter: BluetoothAdapter
+
+    /**
+     * Bluetoothデバイスを探すためのスキャナー
+     */
+    private lateinit var mBluetoothLeScanner: BluetoothLeScanner
 
     /**
      * requestBluetoothFeatureに対するEmitter
@@ -106,8 +111,14 @@ class MainActivity : AppCompatActivity() {
 
     @SuppressLint("CheckResult")
     private fun scanBleDevice() {
+        val scanBleDeviceApi = Observable.create<ScanResult>{
+            val scanner = mBluetoothAdapter.bluetoothLeScanner
+            val callback = BleScanCallback()
+            callback.setScanResultEmitter(it)
+            scanner.startScan(callback)
+        }
+
         Observable.create<Boolean> {
-            Log.i(TAG, "Job1")
             // ボタンを無効化する
             mScanButton.isEnabled = false
             mScanButton.setTextColor(0xffe0e0e0.toInt())
@@ -115,18 +126,30 @@ class MainActivity : AppCompatActivity() {
             it.onNext(true)
             it.onComplete()
         }
-        .observeOn(Schedulers.computation()).map {
-            val scanner = mBluetoothAdapter.bluetoothLeScanner
-            Log.i(TAG, "Job2")
-            Thread.sleep(1000)
+        .observeOn(Schedulers.computation()).flatMap<Boolean> {
+            // BLEデバイスのスキャナーを用意する
+            if (mBluetoothAdapter.bluetoothLeScanner == null) {
+                throw RuntimeException(resources.getString(R.string.ble_scan_failed))
+            }
+            mBluetoothLeScanner = mBluetoothAdapter.bluetoothLeScanner
+            return Observable.create<ScanResult>{
+                val scanner = mBluetoothAdapter.bluetoothLeScanner
+                val callback = BleScanCallback()
+                callback.setScanResultEmitter(it)
+                scanner.startScan(callback)
+                Thread.sleep(5000)
+                scanner.stopScan(callback)
+                it.onComplete()
+            }
         }
-        .observeOn(AndroidSchedulers.mainThread()).subscribe {
-            Log.i(TAG, "Job3")
+        .observeOn(AndroidSchedulers.mainThread()).subscribe({
             // ボタンを有効化する
             mLogTextView.text = String.format("%s%nスキャン完了...", mLogTextView.text)
             mScanButton.setTextColor(0xff000000.toInt())
             mScanButton.isEnabled = true
-        }
+        }, {
+           Toast.makeText(this, it.message, Toast.LENGTH_SHORT).show()
+        })
     }
 
     /**
@@ -189,7 +212,7 @@ class MainActivity : AppCompatActivity() {
                 if (resultCode != Activity.RESULT_CANCELED) {
                     mBluetoothEmitter.onComplete()
                 } else {
-                    mBluetoothEmitter.onError(RuntimeException(getResources().getString(R.string.bluetooth_is_not_working)))
+                    mBluetoothEmitter.onError(RuntimeException(resources.getString(R.string.bluetooth_is_not_working)))
                 }
         }
     }
@@ -207,7 +230,7 @@ class MainActivity : AppCompatActivity() {
                     if (grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                         mLocationEmitter.onComplete()
                     } else {
-                        mLocationEmitter.onError(RuntimeException(getResources().getString(R.string.location_is_not_working)))
+                        mLocationEmitter.onError(RuntimeException(resources.getString(R.string.location_is_not_working)))
                     }
                 }
         }
