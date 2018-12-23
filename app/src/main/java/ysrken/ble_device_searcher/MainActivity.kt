@@ -4,6 +4,7 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothManager
 import android.bluetooth.le.BluetoothLeScanner
 import android.bluetooth.le.ScanCallback
@@ -42,11 +43,6 @@ class MainActivity : AppCompatActivity() {
      * Bluetooth通信を行うためのアダプタ-
      */
     private lateinit var mBluetoothAdapter: BluetoothAdapter
-
-    /**
-     * Bluetoothデバイスを探すためのスキャナー
-     */
-    private lateinit var mBluetoothLeScanner: BluetoothLeScanner
 
     /**
      * requestBluetoothFeatureに対するEmitter
@@ -111,13 +107,6 @@ class MainActivity : AppCompatActivity() {
 
     @SuppressLint("CheckResult")
     private fun scanBleDevice() {
-        val scanBleDeviceApi = Observable.create<ScanResult>{
-            val scanner = mBluetoothAdapter.bluetoothLeScanner
-            val callback = BleScanCallback()
-            callback.setScanResultEmitter(it)
-            scanner.startScan(callback)
-        }
-
         Observable.create<Boolean> {
             // ボタンを無効化する
             mScanButton.isEnabled = false
@@ -126,25 +115,31 @@ class MainActivity : AppCompatActivity() {
             it.onNext(true)
             it.onComplete()
         }
-        .observeOn(Schedulers.computation()).flatMap<Boolean> {
+        .observeOn(Schedulers.computation()).flatMap<BluetoothDevice> { it ->
             // BLEデバイスのスキャナーを用意する
             if (mBluetoothAdapter.bluetoothLeScanner == null) {
                 throw RuntimeException(resources.getString(R.string.ble_scan_failed))
             }
-            mBluetoothLeScanner = mBluetoothAdapter.bluetoothLeScanner
-            return Observable.create<ScanResult>{
+
+            // スキャン処理を登録する
+            Observable.create<BluetoothDevice>{ emitter ->
                 val scanner = mBluetoothAdapter.bluetoothLeScanner
                 val callback = BleScanCallback()
-                callback.setScanResultEmitter(it)
+                callback.setScanResultEmitter(emitter)
                 scanner.startScan(callback)
                 Thread.sleep(5000)
                 scanner.stopScan(callback)
-                it.onComplete()
+                emitter.onComplete()
             }
         }
+        .toList()
         .observeOn(AndroidSchedulers.mainThread()).subscribe({
-            // ボタンを有効化する
+            // ログを表示する
             mLogTextView.text = String.format("%s%nスキャン完了...", mLogTextView.text)
+            for (device in it){
+                mLogTextView.text = String.format("%s%nデータ：%s", mLogTextView.text, device.name + " " + device.address)
+            }
+            // ボタンを有効化する
             mScanButton.setTextColor(0xff000000.toInt())
             mScanButton.isEnabled = true
         }, {
