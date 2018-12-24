@@ -115,7 +115,9 @@ class MainActivity : AppCompatActivity() {
             it.onNext(true)
             it.onComplete()
         }
-        .observeOn(Schedulers.computation()).flatMap<BluetoothDevice> { it ->
+        .subscribeOn(AndroidSchedulers.mainThread())
+        .observeOn(Schedulers.computation())
+        .flatMap<BluetoothDevice> { it ->
             // BLEデバイスのスキャナーを用意する
             if (mBluetoothAdapter.bluetoothLeScanner == null) {
                 throw RuntimeException(resources.getString(R.string.ble_scan_failed))
