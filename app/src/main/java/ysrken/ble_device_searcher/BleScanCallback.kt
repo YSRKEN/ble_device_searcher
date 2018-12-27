@@ -3,9 +3,6 @@ package ysrken.ble_device_searcher
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanResult
-
-import java.util.Observable
-
 import io.reactivex.ObservableEmitter
 
 class BleScanCallback : ScanCallback() {
@@ -15,7 +12,7 @@ class BleScanCallback : ScanCallback() {
      */
     private lateinit var mScanResultEmitter: ObservableEmitter<BluetoothDevice>
 
-    fun setScanResultEmitter(emitter: ObservableEmitter<BluetoothDevice>){
+    fun setScanResultEmitter(emitter: ObservableEmitter<BluetoothDevice>) {
         mScanResultEmitter = emitter
     }
 
