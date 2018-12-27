@@ -22,6 +22,7 @@ import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.schedulers.Schedulers
 import java.io.PrintWriter
 import java.io.StringWriter
+import java.lang.StringBuilder
 
 
 class MainActivity : AppCompatActivity() {
@@ -103,13 +104,13 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    @SuppressLint("CheckResult")
+    @SuppressLint("CheckResult", "SetTextI18n")
     private fun scanBleDevice() {
         Observable.create<Boolean> {
             // ボタンを無効化する
             mScanButton.isEnabled = false
             mScanButton.setTextColor(0xffe0e0e0.toInt())
-            mLogTextView.text = String.format("%s%nスキャン開始...", mLogTextView.text)
+            mLogTextView.text = "${mLogTextView.text}スキャン開始..."
             it.onNext(true)
             it.onComplete()
         }
@@ -135,9 +136,17 @@ class MainActivity : AppCompatActivity() {
             .toList()
             .observeOn(AndroidSchedulers.mainThread()).subscribe({
                 // ログを表示する
-                mLogTextView.text = String.format("%s%nスキャン完了...", mLogTextView.text)
+                mLogTextView.text = String.format("%s%nスキャン完了...\n", mLogTextView.text)
                 for (device in it) {
-                    mLogTextView.text = String.format("${mLogTextView.text}\nデータ：${device.name} ${device.address} ${device.type} ${device.bluetoothClass} ${device.bondState}")
+                    val buffer = StringBuilder()
+                    buffer.append("デバイス名：${device.name}\n")
+                    buffer.append("　MACアドレス：${device.address}\n")
+                    buffer.append("　種類：${BluetoothDeviceType.fromInt(device.type)}\n")
+                    val major =  device.bluetoothClass.majorDeviceClass
+                    val minor =  device.bluetoothClass.deviceClass
+                    buffer.append("　詳細な種類：${BluetoothDeviceMajorType.fromInt(major)}　${BluetoothDeviceMinorType.fromInt(minor)}\n")
+                    buffer.append("　接続状態：${BluetoothBondState.fromInt(device.bondState)}\n")
+                    mLogTextView.text = "${mLogTextView.text}$buffer"
                 }
                 // ボタンを有効化する
                 mScanButton.setTextColor(0xff000000.toInt())
