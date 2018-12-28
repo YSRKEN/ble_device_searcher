@@ -134,6 +134,14 @@ class MainActivity : AppCompatActivity() {
                 }
             }
             .toList()
+            .map {
+                // アドレスの重複を排除する処理
+                val deviceDict: MutableMap<String, BluetoothDevice> = HashMap()
+                for (device in it) {
+                    deviceDict[device.address] = device
+                }
+                deviceDict.values
+            }
             .observeOn(AndroidSchedulers.mainThread()).subscribe({
                 // ログを表示する
                 mLogTextView.text = String.format("%s%nスキャン完了...\n", mLogTextView.text)
