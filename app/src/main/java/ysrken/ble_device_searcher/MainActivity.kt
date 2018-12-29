@@ -13,6 +13,7 @@ import android.os.Bundle
 import android.support.v7.app.AppCompatActivity
 import android.util.Log
 import android.widget.Button
+import android.widget.ListView
 import android.widget.TextView
 import android.widget.Toast
 import io.reactivex.Completable
@@ -56,12 +57,12 @@ class MainActivity : AppCompatActivity() {
     /**
      * スキャンボタン
      */
-    private val mScanButton: Button by lazy { findViewById<Button>(R.id.scan_button) }
+    private val mScanButton: Button by lazy { findViewById<Button>(R.id.scanButton) }
 
     /**
-     * ログ表示画面
+     * デバイス一覧のリストボックス
      */
-    private val mLogTextView: TextView by lazy { findViewById<TextView>(R.id.log_text_view) }
+    private val mListView: ListView by lazy { findViewById(R.id.deviceListView) as ListView }
 
     /**
      * スタックトレースを文字列化する
@@ -110,7 +111,7 @@ class MainActivity : AppCompatActivity() {
             // ボタンを無効化する
             mScanButton.isEnabled = false
             mScanButton.setTextColor(0xffe0e0e0.toInt())
-            mLogTextView.text = "${mLogTextView.text}スキャン開始..."
+            //mLogTextView.text = "${mLogTextView.text}スキャン開始..."
             it.onNext(true)
             it.onComplete()
         }
@@ -144,21 +145,22 @@ class MainActivity : AppCompatActivity() {
             }
             .observeOn(AndroidSchedulers.mainThread()).subscribe({
                 // ログを表示する
-                mLogTextView.text = String.format("%s%nスキャン完了...\n", mLogTextView.text)
+                val deviceList = ArrayList<BluetoothListItem>()
                 for (device in it) {
-                    val buffer = StringBuilder()
-                    buffer.append("デバイス名：${device.name}\n")
-                    buffer.append("　MACアドレス：${device.address}\n")
-                    buffer.append("　種類：${BluetoothDeviceType.fromInt(device.type)}\n")
                     val major =  device.bluetoothClass.majorDeviceClass
                     val minor =  device.bluetoothClass.deviceClass
-                    buffer.append("　詳細な種類：${BluetoothDeviceMajorType.fromInt(major)}　${BluetoothDeviceMinorType.fromInt(minor)}\n")
-                    buffer.append("　接続状態：${BluetoothBondState.fromInt(device.bondState)}\n")
-                    mLogTextView.text = "${mLogTextView.text}$buffer"
+                    val item = BluetoothListItem(favoriteFlg = false, name = device.name, address = device.address, deviceType = "${BluetoothDeviceMinorType.fromInt(minor)}")
+                    deviceList.add(item)
                 }
+                val adapter = BluetoothListAdapter(this, R.layout.bluetooth_device_list_item, deviceList)
+                mListView.setAdapter(adapter)
+
                 // ボタンを有効化する
                 mScanButton.setTextColor(0xff000000.toInt())
                 mScanButton.isEnabled = true
+
+                // トーストを表示する
+                Toast.makeText(this, "デバイス数：${deviceList.size}個", Toast.LENGTH_SHORT).show()
             }, {
                 Toast.makeText(this, it.message, Toast.LENGTH_SHORT).show()
             })
