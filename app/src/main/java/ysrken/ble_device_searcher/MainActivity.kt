@@ -62,7 +62,7 @@ class MainActivity : AppCompatActivity() {
     /**
      * デバイス一覧のリストボックス
      */
-    private val mListView: ListView by lazy { findViewById(R.id.deviceListView) as ListView }
+    private val mListView: ListView by lazy { findViewById<ListView>(R.id.deviceListView) }
 
     /**
      * スタックトレースを文字列化する
@@ -151,7 +151,7 @@ class MainActivity : AppCompatActivity() {
                     BluetoothListItem(
                         favoriteFlg = false,
                         name = device.name ?: "(不明)",
-                        address = device.address,
+                        address = "${device.address}  [${BluetoothDeviceType.fromInt(device.type)}]",
                         deviceType = "${BluetoothDeviceMinorType.fromInt(device.bluetoothClass.deviceClass)}"
                     )
                 }

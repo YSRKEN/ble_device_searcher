@@ -9,6 +9,7 @@ import android.widget.CheckBox
 import android.widget.TextView
 
 
+// Bluetoothをリスト表示するためのアダプター
 class BluetoothListAdapter(context: Context, resource: Int, items: List<BluetoothListItem>) : ArrayAdapter<BluetoothListItem>(context, resource, items) {
     private val mResource: Int = resource
     private val mItems: List<BluetoothListItem> = items
