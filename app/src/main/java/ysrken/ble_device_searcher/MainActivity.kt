@@ -124,7 +124,13 @@ class MainActivity : AppCompatActivity() {
             } else {
                 emitter.onError(RuntimeException(resources.getString(R.string.ble_scan_failed)))
             }
-        }.toList()
+        }
+        .filter{
+            // BLE対応機器以外は飛ばす
+            val deviceType = BluetoothDeviceType.fromInt(it.type)
+            (deviceType == BluetoothDeviceType.LE || deviceType == BluetoothDeviceType.Dual)
+        }
+        .toList()
         .map {
             // アドレスの重複を排除する処理
             val deviceDict: MutableMap<String, BluetoothDevice> = HashMap()
