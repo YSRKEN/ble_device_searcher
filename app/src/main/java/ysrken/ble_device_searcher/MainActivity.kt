@@ -6,6 +6,7 @@ import android.app.Activity
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothManager
+import android.bluetooth.le.BluetoothLeScanner
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -14,16 +15,15 @@ import android.support.v7.app.AppCompatActivity
 import android.util.Log
 import android.widget.Button
 import android.widget.ListView
-import android.widget.TextView
 import android.widget.Toast
 import io.reactivex.Completable
 import io.reactivex.CompletableEmitter
 import io.reactivex.Observable
+import io.reactivex.Single
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.schedulers.Schedulers
 import java.io.PrintWriter
 import java.io.StringWriter
-import java.lang.StringBuilder
 
 
 class MainActivity : AppCompatActivity() {
@@ -105,55 +105,58 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    @SuppressLint("CheckResult", "SetTextI18n")
-    private fun scanBleDevice() {
-        Observable.create<Boolean> {
-            // ボタンを無効化する
-            mScanButton.isEnabled = false
-            mScanButton.setTextColor(0xffe0e0e0.toInt())
-            //mLogTextView.text = "${mLogTextView.text}スキャン開始..."
-            it.onNext(true)
-            it.onComplete()
+    /**
+     * 周囲のデバイスをスキャンする
+     * @param scanTime スキャンする時間
+     */
+    private fun scanBluetoothDevice(scanTime: Long): Single<List<BluetoothDevice>> {
+        return Observable.create<BluetoothDevice> { emitter ->
+            // BLEデバイスのスキャナーを用意する
+            val scanner: BluetoothLeScanner? = mBluetoothAdapter.bluetoothLeScanner
+            if (scanner != null) {
+                // スキャン処理を実施する
+                val callback = BleScanCallback()
+                callback.setScanResultEmitter(emitter)
+                scanner.startScan(callback)
+                Thread.sleep(scanTime)
+                scanner.stopScan(callback)
+                emitter.onComplete()
+            } else {
+                emitter.onError(RuntimeException(resources.getString(R.string.ble_scan_failed)))
+            }
+        }.toList()
+        .map {
+            // アドレスの重複を排除する処理
+            val deviceDict: MutableMap<String, BluetoothDevice> = HashMap()
+            for (device in it) {
+                deviceDict[device.address] = device
+            }
+            deviceDict.values.toList()
         }
-            .subscribeOn(AndroidSchedulers.mainThread())
-            .observeOn(Schedulers.computation())
-            .flatMap<BluetoothDevice> { it ->
-                // BLEデバイスのスキャナーを用意する
-                if (mBluetoothAdapter.bluetoothLeScanner == null) {
-                    throw RuntimeException(resources.getString(R.string.ble_scan_failed))
-                }
+    }
 
-                // スキャン処理を登録する
-                Observable.create<BluetoothDevice> { emitter ->
-                    val scanner = mBluetoothAdapter.bluetoothLeScanner
-                    val callback = BleScanCallback()
-                    callback.setScanResultEmitter(emitter)
-                    scanner.startScan(callback)
-                    Thread.sleep(5000)
-                    scanner.stopScan(callback)
-                    emitter.onComplete()
-                }
-            }
-            .toList()
-            .map {
-                // アドレスの重複を排除する処理
-                val deviceDict: MutableMap<String, BluetoothDevice> = HashMap()
-                for (device in it) {
-                    deviceDict[device.address] = device
-                }
-                deviceDict.values
-            }
-            .observeOn(AndroidSchedulers.mainThread()).subscribe({
+    @SuppressLint("CheckResult")
+    private fun scanBleDeviceCommand() {
+        // ボタンを無効化する
+        mScanButton.isEnabled = false
+        mScanButton.setTextColor(0xffe0e0e0.toInt())
+
+        // デバイスをスキャンし、結果を表示する
+        scanBluetoothDevice(5000)
+            .subscribeOn(Schedulers.computation())
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe({
                 // ログを表示する
-                val deviceList = ArrayList<BluetoothListItem>()
-                for (device in it) {
-                    val major =  device.bluetoothClass.majorDeviceClass
-                    val minor =  device.bluetoothClass.deviceClass
-                    val item = BluetoothListItem(favoriteFlg = false, name = device.name, address = device.address, deviceType = "${BluetoothDeviceMinorType.fromInt(minor)}")
-                    deviceList.add(item)
+                val deviceList = it.map {device ->
+                    BluetoothListItem(
+                        favoriteFlg = false,
+                        name = device.name ?: "(不明)",
+                        address = device.address,
+                        deviceType = "${BluetoothDeviceMinorType.fromInt(device.bluetoothClass.deviceClass)}"
+                    )
                 }
                 val adapter = BluetoothListAdapter(this, R.layout.bluetooth_device_list_item, deviceList)
-                mListView.setAdapter(adapter)
+                mListView.adapter = adapter
 
                 // ボタンを有効化する
                 mScanButton.setTextColor(0xff000000.toInt())
@@ -195,7 +198,7 @@ class MainActivity : AppCompatActivity() {
 
         // ボタンにイベントを設定する
         mScanButton.setOnClickListener {
-            scanBleDevice()
+            scanBleDeviceCommand()
         }
     }
 

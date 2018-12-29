@@ -9,7 +9,7 @@ import android.widget.CheckBox
 import android.widget.TextView
 
 
-class BluetoothListAdapter(context: Context, resource: Int, items: MutableList<BluetoothListItem>) : ArrayAdapter<BluetoothListItem>(context, resource, items) {
+class BluetoothListAdapter(context: Context, resource: Int, items: List<BluetoothListItem>) : ArrayAdapter<BluetoothListItem>(context, resource, items) {
     private val mResource: Int = resource
     private val mItems: List<BluetoothListItem> = items
     private val mInflater: LayoutInflater = context.getSystemService(Context.LAYOUT_INFLATER_SERVICE) as LayoutInflater
