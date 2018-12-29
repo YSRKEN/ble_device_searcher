@@ -23,6 +23,7 @@ class BluetoothListAdapter(context: Context, resource: Int, items: List<Bluetoot
         (view.findViewById(R.id.nameTextView) as TextView).text = item.name
         (view.findViewById(R.id.addressTextView) as TextView).text = item.address
         (view.findViewById(R.id.deviceTypeTextView) as TextView).text = item.deviceType
+        (view.findViewById(R.id.rssiTextView) as TextView).text = "${item.rssi} dB"
 
         return view
     }

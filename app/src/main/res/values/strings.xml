@@ -6,4 +6,5 @@
     <string name="bluetooth_is_not_working">Bluetooth通信が有効になりませんでした。</string>
     <string name="location_is_not_working">位置情報機能が有効になりませんでした。</string>
     <string name="ble_scan_failed">BLEデバイスのスキャンに失敗しました。</string>
+    <string name="ble_rssi_failed">BLEデバイスのRSSI値の取得に失敗しました。</string>
 </resources>

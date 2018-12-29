@@ -19,7 +19,7 @@
             android:layout_gravity="center_horizontal" />
 
         <TextView
-            android:id="@+id/powerTextView"
+            android:id="@+id/rssiTextView"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_gravity="center_horizontal"

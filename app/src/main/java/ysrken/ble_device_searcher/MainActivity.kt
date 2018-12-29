@@ -5,6 +5,7 @@ import android.annotation.SuppressLint
 import android.app.Activity
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
+import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothManager
 import android.bluetooth.le.BluetoothLeScanner
 import android.content.Context
@@ -109,7 +110,7 @@ class MainActivity : AppCompatActivity() {
      * 周囲のデバイスをスキャンする
      * @param scanTime スキャンする時間
      */
-    private fun scanBluetoothDevice(scanTime: Long): Single<List<BluetoothDevice>> {
+    private fun scanBluetoothDevice(scanTime: Long): Single<List<Pair<BluetoothDevice, Int>>> {
         return Observable.create<BluetoothDevice> { emitter ->
             // BLEデバイスのスキャナーを用意する
             val scanner: BluetoothLeScanner? = mBluetoothAdapter.bluetoothLeScanner
@@ -130,12 +131,28 @@ class MainActivity : AppCompatActivity() {
             val deviceType = BluetoothDeviceType.fromInt(it.type)
             (deviceType == BluetoothDeviceType.LE || deviceType == BluetoothDeviceType.Dual)
         }
+        .flatMap { device ->
+            val callback = BleGattCallback()
+            Observable.create<BluetoothGatt> { emitter ->
+                callback.setBluetoothGatttEmitter(emitter)
+                device.connectGatt(this, false, callback)
+            }.flatMap {
+                Observable.create<Int>{emitter ->
+                    callback.setIntEmitter(emitter)
+                    if (!it.readRemoteRssi()) {
+                        emitter.onError(RuntimeException(resources.getString(R.string.ble_rssi_failed)))
+                    }
+                }
+            }.map {
+                Pair(device, it)
+            }
+        }
         .toList()
-        .map {
+        .map {pair ->
             // アドレスの重複を排除する処理
-            val deviceDict: MutableMap<String, BluetoothDevice> = HashMap()
-            for (device in it) {
-                deviceDict[device.address] = device
+            val deviceDict: MutableMap<String, Pair<BluetoothDevice, Int>> = HashMap()
+            for (device in pair) {
+                deviceDict[device.first.address] = device
             }
             deviceDict.values.toList()
         }
@@ -153,12 +170,15 @@ class MainActivity : AppCompatActivity() {
             .observeOn(AndroidSchedulers.mainThread())
             .subscribe({
                 // ログを表示する
-                val deviceList = it.map {device ->
+                val deviceList = it.map {pair ->
+                    val device = pair.first
+                    val rssi = pair.second
                     BluetoothListItem(
                         favoriteFlg = false,
                         name = device.name ?: "(不明)",
                         address = "${device.address}  [${BluetoothDeviceType.fromInt(device.type)}]",
-                        deviceType = "${BluetoothDeviceMinorType.fromInt(device.bluetoothClass.deviceClass)}"
+                        deviceType = "${BluetoothDeviceMinorType.fromInt(device.bluetoothClass.deviceClass)}",
+                        rssi = rssi
                     )
                 }
                 val adapter = BluetoothListAdapter(this, R.layout.bluetooth_device_list_item, deviceList)
